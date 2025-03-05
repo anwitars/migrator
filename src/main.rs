@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use rusqlite::Connection;
 
 #[derive(Parser)]
 struct Cli {
@@ -26,6 +25,8 @@ enum MigrateCommands {
 }
 
 fn main() {
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+
     let cli = Cli::parse();
 
     match cli.command {
@@ -39,11 +40,7 @@ fn migration_create_command(name: String) {
     migrator::create_migrations_dir();
 
     let migration = migrator::Migration::new(name);
-    println!("{:?}", migration);
-    println!("{:?}", migration.created_at());
-    println!("{:?}", migration.stringify_id());
+    log::debug!("Initialized migration: {:?}", migration);
 
-    let (up_filename, down_filename) = migration.generate_filenames();
-    println!("{:?}", up_filename);
-    println!("{:?}", down_filename);
+    migration.generate_files();
 }

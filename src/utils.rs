@@ -24,19 +24,7 @@ pub fn table_exists<S: AsRef<str>>(conn: &Connection, table_name: S) -> bool {
 }
 
 pub fn create_migrations_dir() {
-    std::fs::create_dir_all(format!(
-        "{}/{}/{}",
-        crate::MIGRATOR_MAIN_DIR,
-        crate::MIGRATOR_SQLITE_SUBDIR,
-        crate::MIGRATOR_UP_DIR,
-    ))
-    .unwrap();
-
-    std::fs::create_dir_all(format!(
-        "{}/{}/{}",
-        crate::MIGRATOR_MAIN_DIR,
-        crate::MIGRATOR_SQLITE_SUBDIR,
-        crate::MIGRATOR_DOWN_DIR,
-    ))
-    .unwrap();
+    std::fs::create_dir_all(&*crate::MIGRATOR_UP_DIR).unwrap();
+    std::fs::create_dir_all(&*crate::MIGRATOR_DOWN_DIR).unwrap();
+    log::debug!("Created migrations directory");
 }

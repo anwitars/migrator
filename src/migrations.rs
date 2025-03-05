@@ -42,4 +42,17 @@ impl Migration {
 
         (get_filename("up"), get_filename("down"))
     }
+
+    pub fn generate_files(&self) {
+        let (up_filename, down_filename) = self.generate_filenames();
+
+        let up_path = format!("{}/{}", &*crate::MIGRATOR_UP_DIR, up_filename);
+        let down_path = format!("{}/{}", &*crate::MIGRATOR_DOWN_DIR, down_filename);
+
+        std::fs::write(&up_path, "").unwrap();
+        log::debug!("Generated file: {}", up_path);
+
+        std::fs::write(&down_path, "").unwrap();
+        log::debug!("Generated file: {}", down_path);
+    }
 }
