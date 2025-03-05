@@ -12,3 +12,10 @@ pub static CREATE_MIGRATIONS_TABLE_SQL: LazyLock<String> = LazyLock::new(|| {
         MIGRATIONS_TABLE_NAME
     )
 });
+
+pub const MIGRATOR_MAIN_DIR: &str = "migrations";
+pub const MIGRATOR_SQLITE_SUBDIR: &str = "sqlite";
+pub const MIGRATOR_UP_DIR: &str = "up";
+pub const MIGRATOR_DOWN_DIR: &str = "down";
+
+pub const MIGRATION_MAX_NAME_FOR_FILE: usize = 40;
