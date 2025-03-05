@@ -10,6 +10,9 @@ struct Cli {
 enum Commands {
     #[clap(name = "migrate")]
     Migrate(Migrate),
+
+    #[clap(name = "history")]
+    History,
 }
 
 #[derive(Parser)]
@@ -33,6 +36,7 @@ fn main() {
         Commands::Migrate(migrate) => match migrate.command {
             MigrateCommands::Create { name } => migration_create_command(name),
         },
+        Commands::History => result_app_exit(migration_history_command()),
     }
 }
 
@@ -43,4 +47,24 @@ fn migration_create_command(name: String) {
     log::debug!("Initialized migration: {:?}", migration);
 
     migration.generate_files();
+}
+
+fn migration_history_command() -> Result<(), ()> {
+    let mut history = match migrator::get_migration_history() {
+        Ok(history) => history,
+        Err(_) => return Err(()),
+    };
+    history.reverse();
+
+    for migration in history {
+        println!("{} {}", migration.stringify_id(), migration.name());
+    }
+
+    Ok(())
+}
+
+fn result_app_exit(result: Result<(), ()>) {
+    if let Err(_) = result {
+        std::process::exit(1);
+    }
 }
