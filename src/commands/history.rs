@@ -1,29 +1,6 @@
-use crate::cli::DatabaseUrl;
+use crate::{AnyResult, cli::DatabaseUrl};
 
-#[derive(Debug, thiserror::Error)]
-pub enum MigrationHistoryCommandError {
-    #[error("{0}")]
-    MigratorError(crate::GetMigrationHistoryError),
-
-    #[error("SQLite error: {0}")]
-    RusqliteError(rusqlite::Error),
-}
-
-impl From<crate::GetMigrationHistoryError> for MigrationHistoryCommandError {
-    fn from(e: crate::GetMigrationHistoryError) -> Self {
-        MigrationHistoryCommandError::MigratorError(e)
-    }
-}
-
-impl From<rusqlite::Error> for MigrationHistoryCommandError {
-    fn from(e: rusqlite::Error) -> Self {
-        MigrationHistoryCommandError::RusqliteError(e)
-    }
-}
-
-pub fn migration_history_command(
-    database_url: Option<DatabaseUrl>,
-) -> Result<(), MigrationHistoryCommandError> {
+pub fn migration_history_command(database_url: Option<DatabaseUrl>) -> AnyResult<()> {
     let current = if let Some(db_url) = database_url {
         let conn = db_url.open_connection()?;
         crate::get_current_migration(&conn)?.map(|m| String::from_utf8_lossy(&m).to_string())

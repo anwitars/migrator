@@ -1,5 +1,7 @@
 use std::{collections::HashSet, fs::DirEntry};
 
+use crate::AnyResult;
+
 /// Defines a migration. A migration is a set of SQL queries that are executed in order to update
 /// the database schema.
 #[derive(Debug)]
@@ -95,49 +97,38 @@ impl Ord for Migration {
 }
 
 #[derive(Debug)]
-pub enum GetMigrationHistoryError {
-    IO(std::io::Error),
-
-    InconsistentMigrations {
-        up: HashSet<String>,
-        down: HashSet<String>,
-    },
+pub struct InconsistentMigrationsError {
+    up: HashSet<String>,
+    down: HashSet<String>,
 }
 
-impl std::fmt::Display for GetMigrationHistoryError {
+impl std::fmt::Display for InconsistentMigrationsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GetMigrationHistoryError::IO(e) => write!(f, "IO error: {}", e),
-            GetMigrationHistoryError::InconsistentMigrations { up, down } => {
-                if !up.is_empty() {
-                    writeln!(f, "The following migrations are missing down files:")?;
-                    for migration in up {
-                        writeln!(f, "  {}", migration)?;
-                    }
-                }
-
-                if !down.is_empty() {
-                    if !up.is_empty() {
-                        writeln!(f)?;
-                    }
-
-                    writeln!(f, "The following migrations are missing up files:")?;
-                    for migration in down {
-                        writeln!(f, "  {}", migration)?;
-                    }
-                }
-
-                Ok(())
+        if !self.up.is_empty() {
+            writeln!(f, "The following migrations are missing down files:")?;
+            for migration in self.up.iter() {
+                writeln!(f, "  {}", migration)?;
             }
         }
+
+        if !self.down.is_empty() {
+            if !self.up.is_empty() {
+                writeln!(f)?;
+            }
+
+            writeln!(f, "The following migrations are missing up files:")?;
+            for migration in self.down.iter() {
+                writeln!(f, "  {}", migration)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
-pub fn get_migration_history() -> Result<Vec<Migration>, GetMigrationHistoryError> {
-    let up_files =
-        std::fs::read_dir(&*crate::MIGRATOR_UP_DIR).map_err(GetMigrationHistoryError::IO)?;
-    let down_files =
-        std::fs::read_dir(&*crate::MIGRATOR_DOWN_DIR).map_err(GetMigrationHistoryError::IO)?;
+pub fn get_migration_history() -> AnyResult<Vec<Migration>> {
+    let up_files = std::fs::read_dir(&*crate::MIGRATOR_UP_DIR)?;
+    let down_files = std::fs::read_dir(&*crate::MIGRATOR_DOWN_DIR)?;
 
     let filename_mapper = |entry: std::io::Result<DirEntry>| -> String {
         entry
@@ -156,10 +147,10 @@ pub fn get_migration_history() -> Result<Vec<Migration>, GetMigrationHistoryErro
     let only_down_files: HashSet<String> = down_files.difference(&up_files).cloned().collect();
 
     if !only_up_files.is_empty() || !only_down_files.is_empty() {
-        return Err(GetMigrationHistoryError::InconsistentMigrations {
+        return Err(InconsistentMigrationsError {
             up: only_up_files,
             down: only_down_files,
-        });
+        })?;
     }
 
     let mut migrations = up_files
@@ -204,6 +195,7 @@ pub fn get_current_migration(conn: &rusqlite::Connection) -> rusqlite::Result<Op
                 Err(rusqlite::Error::SqliteFailure(e, msg))
             }
         }
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(err) => Err(err),
     }
 }
