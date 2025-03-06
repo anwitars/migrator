@@ -42,17 +42,15 @@ fn migration_history_command(database_url: Option<DatabaseUrl>) -> Result<(), ()
     history.reverse();
 
     for migration in history {
+        let mut text = format!("{} {}", migration.stringify_id(), migration.name());
+
         if let Some(current) = &current {
             if &migration.stringify_id() == current {
-                println!(
-                    "{} {} (current)",
-                    migration.stringify_id(),
-                    migration.name()
-                );
-                continue;
+                text.push_str(" (current)");
             }
         }
-        println!("{} {}", migration.stringify_id(), migration.name());
+
+        println!("{}", text);
     }
 
     Ok(())

@@ -1,8 +1,10 @@
 use rusqlite::Connection;
 
-pub fn create_migration_table(conn: &Connection) {
-    conn.execute(&*crate::CREATE_MIGRATIONS_TABLE_SQL, [])
-        .unwrap();
+pub fn create_migration_table(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute(&*crate::CREATE_MIGRATIONS_TABLE_SQL, [])?;
+    conn.execute(&*crate::CREATE_MIGRATIONS_TABLE_UPDATE_TRIGGER_SQL, [])?;
+
+    Ok(())
 }
 
 pub fn table_exists<S: AsRef<str>>(conn: &Connection, table_name: S) -> bool {

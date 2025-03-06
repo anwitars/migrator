@@ -159,7 +159,7 @@ pub fn get_migration_history() -> Result<Vec<Migration>, ()> {
 pub fn get_current_migration(conn: &rusqlite::Connection) -> rusqlite::Result<Option<[u8; 14]>> {
     match conn.query_row(
         &format!(
-            "SELECT id FROM {} ORDER BY created_at DESC LIMIT 1",
+            "SELECT id FROM {} ORDER BY migrated_at DESC LIMIT 1",
             &*crate::MIGRATIONS_TABLE_NAME
         ),
         [],

@@ -6,8 +6,18 @@ pub static CREATE_MIGRATIONS_TABLE_SQL: LazyLock<String> = LazyLock::new(|| {
     format!(
         "CREATE TABLE IF NOT EXISTS {} (
             id TEXT NOT NULL PRIMARY KEY,
+            migrated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )",
         MIGRATIONS_TABLE_NAME
+    )
+});
+
+pub static CREATE_MIGRATIONS_TABLE_UPDATE_TRIGGER_SQL: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "CREATE TRIGGER IF NOT EXISTS update_migration_timestamp UPDATE OF id ON {tablename} BEGIN
+            UPDATE {tablename} SET migrated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+        END",
+        tablename = MIGRATIONS_TABLE_NAME,
     )
 });
 
