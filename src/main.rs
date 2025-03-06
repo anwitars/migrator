@@ -1,31 +1,5 @@
-use clap::{Parser, Subcommand};
-
-#[derive(Parser)]
-struct Cli {
-    #[clap(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    #[clap(name = "migrate")]
-    Migrate(Migrate),
-
-    #[clap(name = "history")]
-    History,
-}
-
-#[derive(Parser)]
-struct Migrate {
-    #[clap(subcommand)]
-    command: MigrateCommands,
-}
-
-#[derive(Subcommand)]
-enum MigrateCommands {
-    #[clap(name = "create")]
-    Create { name: String },
-}
+use clap::Parser;
+use migrator::cli::{Cli, Commands, DatabaseUrl, MigrateCommands};
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
@@ -36,7 +10,9 @@ fn main() {
         Commands::Migrate(migrate) => match migrate.command {
             MigrateCommands::Create { name } => migration_create_command(name),
         },
-        Commands::History => result_app_exit(migration_history_command()),
+        Commands::History { database_url } => {
+            result_app_exit(migration_history_command(database_url))
+        }
     }
 }
 
@@ -49,7 +25,16 @@ fn migration_create_command(name: String) {
     migration.generate_files();
 }
 
-fn migration_history_command() -> Result<(), ()> {
+fn migration_history_command(database_url: Option<DatabaseUrl>) -> Result<(), ()> {
+    let current = if let Some(db_url) = database_url {
+        let conn = db_url.open_connection().unwrap();
+        migrator::get_current_migration(&conn)
+            .unwrap()
+            .map(|m| String::from_utf8_lossy(&m).to_string())
+    } else {
+        None
+    };
+
     let mut history = match migrator::get_migration_history() {
         Ok(history) => history,
         Err(_) => return Err(()),
@@ -57,6 +42,16 @@ fn migration_history_command() -> Result<(), ()> {
     history.reverse();
 
     for migration in history {
+        if let Some(current) = &current {
+            if &migration.stringify_id() == current {
+                println!(
+                    "{} {} (current)",
+                    migration.stringify_id(),
+                    migration.name()
+                );
+                continue;
+            }
+        }
         println!("{} {}", migration.stringify_id(), migration.name());
     }
 

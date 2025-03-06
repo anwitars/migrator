@@ -155,3 +155,31 @@ pub fn get_migration_history() -> Result<Vec<Migration>, ()> {
 
     Ok(migrations)
 }
+
+pub fn get_current_migration(conn: &rusqlite::Connection) -> rusqlite::Result<Option<[u8; 14]>> {
+    match conn.query_row(
+        &format!(
+            "SELECT id FROM {} ORDER BY created_at DESC LIMIT 1",
+            &*crate::MIGRATIONS_TABLE_NAME
+        ),
+        [],
+        |row| {
+            let id: String = row.get(0)?;
+            Ok(Some(id.as_bytes().try_into().unwrap()))
+        },
+    ) {
+        Ok(id) => Ok(id),
+        Err(rusqlite::Error::SqliteFailure(e, msg)) => {
+            if let Some(ref m) = msg {
+                if m.contains("no such table") {
+                    Ok(None)
+                } else {
+                    Err(rusqlite::Error::SqliteFailure(e, msg))
+                }
+            } else {
+                Err(rusqlite::Error::SqliteFailure(e, msg))
+            }
+        }
+        Err(err) => Err(err),
+    }
+}
