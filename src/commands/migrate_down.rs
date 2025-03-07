@@ -1,0 +1,51 @@
+use crate::{
+    AnyResult, Revision, cli::DatabaseUrl, create_migration_table, get_current_migration,
+    get_migration_history,
+};
+
+pub fn migration_migrate_down(target: Revision, database_url: DatabaseUrl) -> AnyResult<()> {
+    log::debug!("Target revision: {:?}", target);
+
+    let conn = database_url.open_connection()?;
+    log::debug!("Opened connection to database");
+
+    create_migration_table(&conn)?;
+    log::debug!("Migration table created if it didn't exist");
+
+    let all_migrations = get_migration_history()?;
+    let current =
+        get_current_migration(&conn)?.map(|bytes| String::from_utf8_lossy(&bytes).to_string());
+    log::debug!("Current migration: {:?}", current);
+
+    let revisions_to_revert = target.revisions_to_revert(&all_migrations, current)?;
+    log::debug!("Revisions to revert: {:?}", revisions_to_revert);
+
+    if revisions_to_revert.is_empty() {
+        println!("Already reverted to the target revision");
+        return Ok(());
+    }
+
+    for migration_id in revisions_to_revert.iter() {
+        let migration = all_migrations
+            .iter()
+            .find(|m| &m.stringify_id() == migration_id)
+            .unwrap();
+
+        log::debug!("Reverting migration: {:?}", migration);
+        migration.down(&conn)?;
+    }
+    log::debug!("All migrations applied");
+
+    let last_id = target.resolve_revision_id(&all_migrations)?;
+
+    conn.execute(
+        &format!(
+            "INSERT INTO {} (id) VALUES (?)",
+            &*crate::MIGRATIONS_TABLE_NAME
+        ),
+        [last_id],
+    )?;
+    log::debug!("Migration entry added to the database");
+
+    Ok(())
+}

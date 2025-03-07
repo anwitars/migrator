@@ -1,6 +1,6 @@
-use std::str::FromStr;
-
+use crate::Revision;
 use clap::{Parser, Subcommand};
+use std::str::FromStr;
 
 #[derive(Parser)]
 pub struct Cli {
@@ -31,6 +31,22 @@ pub struct Migrate {
 pub enum MigrateCommands {
     #[clap(name = "create")]
     Create { name: String },
+
+    #[clap(name = "up")]
+    Up {
+        revision: Revision,
+
+        #[clap(short, long)]
+        database_url: DatabaseUrl,
+    },
+
+    #[clap(name = "down")]
+    Down {
+        revision: Revision,
+
+        #[clap(short, long)]
+        database_url: DatabaseUrl,
+    },
 }
 
 #[derive(Clone)]

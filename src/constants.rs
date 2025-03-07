@@ -5,8 +5,8 @@ pub const MIGRATIONS_TABLE_NAME: &str = "__migrations__";
 pub static CREATE_MIGRATIONS_TABLE_SQL: LazyLock<String> = LazyLock::new(|| {
     format!(
         "CREATE TABLE IF NOT EXISTS {} (
-            id TEXT NOT NULL PRIMARY KEY,
-            migrated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            migrated_at TIMESTAMP NOT NULL PRIMARY KEY DEFAULT CURRENT_TIMESTAMP,
+            id TEXT NOT NULL
         )",
         MIGRATIONS_TABLE_NAME
     )

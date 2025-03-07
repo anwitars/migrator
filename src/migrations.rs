@@ -74,6 +74,30 @@ impl Migration {
         std::fs::write(&down_path, "").unwrap();
         log::debug!("Generated file: {}", down_path);
     }
+
+    fn execute_file(&self, conn: &rusqlite::Connection, filepath: &str) -> rusqlite::Result<()> {
+        log::debug!("Executing file: {}", filepath);
+        let sql = std::fs::read_to_string(&filepath).unwrap();
+        conn.execute_batch(&sql)?;
+
+        Ok(())
+    }
+
+    pub fn up(&self, conn: &rusqlite::Connection) -> rusqlite::Result<()> {
+        let (up_filename, _) = self.generate_filenames();
+        self.execute_file(
+            conn,
+            &format!("{}/{}", &*crate::MIGRATOR_UP_DIR, up_filename),
+        )
+    }
+
+    pub fn down(&self, conn: &rusqlite::Connection) -> rusqlite::Result<()> {
+        let (_, down_filename) = self.generate_filenames();
+        self.execute_file(
+            conn,
+            &format!("{}/{}", &*crate::MIGRATOR_DOWN_DIR, down_filename),
+        )
+    }
 }
 
 impl PartialEq for Migration {
