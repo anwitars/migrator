@@ -27,8 +27,8 @@ impl Migration {
 
     pub fn from_filename(filename: impl AsRef<str>) -> Self {
         let filename = filename.as_ref();
-        let wow = filename.splitn(3, '_').collect::<Vec<_>>();
-        let (id, name) = (wow[0], wow[1]);
+        let wow = filename.splitn(2, '_').collect::<Vec<_>>();
+        let (id, name) = (wow[0], wow[1].replace(".sql", ""));
 
         Self {
             id: id.as_bytes().try_into().unwrap(),
@@ -49,7 +49,7 @@ impl Migration {
         std::str::from_utf8(&self.id).unwrap().to_string()
     }
 
-    pub fn generate_filenames(&self) -> (String, String) {
+    pub fn generate_filename(&self) -> String {
         let id = self.stringify_id();
         let name = self
             .name
@@ -57,16 +57,14 @@ impl Migration {
             .take(crate::MIGRATION_MAX_NAME_FOR_FILE)
             .collect::<String>();
 
-        let get_filename = |up_or_down| format!("{}_{}_{}.sql", id, name, up_or_down,);
-
-        (get_filename("up"), get_filename("down"))
+        format!("{}_{}.sql", id, name)
     }
 
     pub fn generate_files(&self) {
-        let (up_filename, down_filename) = self.generate_filenames();
+        let filename = self.generate_filename();
 
-        let up_path = format!("{}/{}", &*crate::MIGRATOR_UP_DIR, up_filename);
-        let down_path = format!("{}/{}", &*crate::MIGRATOR_DOWN_DIR, down_filename);
+        let up_path = format!("{}/{}", &*crate::MIGRATOR_UP_DIR, &filename);
+        let down_path = format!("{}/{}", &*crate::MIGRATOR_DOWN_DIR, &filename);
 
         std::fs::write(&up_path, "").unwrap();
         log::debug!("Generated file: {}", up_path);
@@ -84,18 +82,20 @@ impl Migration {
     }
 
     pub fn up(&self, conn: &rusqlite::Connection) -> rusqlite::Result<()> {
-        let (up_filename, _) = self.generate_filenames();
         self.execute_file(
             conn,
-            &format!("{}/{}", &*crate::MIGRATOR_UP_DIR, up_filename),
+            &format!("{}/{}", &*crate::MIGRATOR_UP_DIR, self.generate_filename()),
         )
     }
 
     pub fn down(&self, conn: &rusqlite::Connection) -> rusqlite::Result<()> {
-        let (_, down_filename) = self.generate_filenames();
         self.execute_file(
             conn,
-            &format!("{}/{}", &*crate::MIGRATOR_DOWN_DIR, down_filename),
+            &format!(
+                "{}/{}",
+                &*crate::MIGRATOR_DOWN_DIR,
+                self.generate_filename()
+            ),
         )
     }
 }
