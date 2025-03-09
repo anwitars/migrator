@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::Migration;
+use crate::{Migration, migrations::MigrationId};
 
 // TODO: clean up the naming mess
 #[derive(Debug, Clone)]
@@ -68,18 +68,16 @@ impl Revision {
         Ok(all_migrations[target_index].stringify_id().clone())
     }
 
-    fn resolve_current_index<Current: AsRef<str>>(
+    fn resolve_current_index(
         &self,
         all_migrations: &[Migration],
-        current: Option<Current>,
+        current: Option<&MigrationId>,
     ) -> Result<Option<usize>, &'static str> {
-        let current = current.map(|s| s.as_ref().to_string());
-
         let current_index = match current {
             Some(current) => Some(
                 all_migrations
                     .iter()
-                    .position(|m| m.stringify_id() == current)
+                    .position(|m| m.id == *current)
                     .ok_or("Database has invalid current migration")?,
             ),
             None => None,
@@ -88,15 +86,16 @@ impl Revision {
         Ok(current_index)
     }
 
-    pub fn revisions_to_apply<Current: AsRef<str>>(
+    pub fn revisions_to_apply(
         &self,
         all_migrations: &[Migration],
-        current: Option<Current>,
+        current: Option<&MigrationId>,
     ) -> Result<Vec<String>, &'static str> {
-        let current = current.map(|s| s.as_ref().to_string());
-
         let current_index = self.resolve_current_index(all_migrations, current)?;
+        log::debug!("Current index: {:?}", current_index);
+
         let target_index = self.resolve_revision_index(all_migrations, current_index)?;
+        log::debug!("Target index: {:?}", target_index);
 
         if let Some(current_index) = current_index {
             if target_index <= current_index {
@@ -104,19 +103,19 @@ impl Revision {
             }
         }
 
-        Ok(all_migrations[current_index.unwrap_or(0)..=target_index]
-            .iter()
-            .map(|m| m.stringify_id().clone())
-            .collect())
+        Ok(
+            all_migrations[current_index.unwrap_or(0) + 1..=target_index]
+                .iter()
+                .map(|m| m.stringify_id().clone())
+                .collect(),
+        )
     }
 
-    pub fn revisions_to_revert<Current: AsRef<str>>(
+    pub fn revisions_to_revert(
         &self,
         all_migrations: &[Migration],
-        current: Option<Current>,
+        current: Option<&MigrationId>,
     ) -> Result<Vec<String>, &'static str> {
-        let current = current.map(|s| s.as_ref().to_string());
-
         if current.is_none() {
             return Err("No current migration");
         }

@@ -1,6 +1,51 @@
-use std::{collections::HashSet, fs::DirEntry};
+use std::{array::TryFromSliceError, collections::HashSet, fs::DirEntry};
 
 use crate::AnyResult;
+
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+pub struct MigrationId([u8; 14]);
+
+impl MigrationId {
+    pub fn new(id: [u8; 14]) -> Self {
+        Self(id)
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 14] {
+        &self.0
+    }
+
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.0).unwrap()
+    }
+}
+
+impl std::fmt::Debug for MigrationId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("MigrationId({})", self.as_str()))
+    }
+}
+
+impl ToString for MigrationId {
+    fn to_string(&self) -> String {
+        std::str::from_utf8(&self.0).unwrap().to_string()
+    }
+}
+
+impl TryFrom<&str> for MigrationId {
+    type Error = TryFromSliceError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(Self(value.as_bytes().try_into()?))
+    }
+}
+
+impl TryFrom<&[u8]> for MigrationId {
+    type Error = TryFromSliceError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self(value.try_into()?))
+    }
+}
 
 /// Defines a migration. A migration is a set of SQL queries that are executed in order to update
 /// the database schema.
@@ -8,32 +53,32 @@ use crate::AnyResult;
 pub struct Migration {
     /// The unique identifier of the migration. Defined by the current datetime in the format
     /// `YYYYMMDDHHMMSS`.
-    pub id: [u8; 14],
+    pub id: MigrationId,
 
     /// The name of the migration. This is the name that will be displayed in the migration table.
     name: String,
 }
 
 impl Migration {
-    pub fn new(name: impl AsRef<str>) -> Self {
+    pub fn new(name: impl AsRef<str>) -> Result<Self, TryFromSliceError> {
         let id = chrono::Utc::now().format("%Y%m%d%H%M%S").to_string();
-        let id = id.as_bytes().try_into().unwrap();
+        let id = id.as_bytes().try_into()?;
 
-        Self {
+        Ok(Self {
             id,
             name: name.as_ref().to_string().replace(" ", "_"),
-        }
+        })
     }
 
-    pub fn from_filename(filename: impl AsRef<str>) -> Self {
+    pub fn from_filename(filename: impl AsRef<str>) -> Result<Self, TryFromSliceError> {
         let filename = filename.as_ref();
         let wow = filename.splitn(2, '_').collect::<Vec<_>>();
         let (id, name) = (wow[0], wow[1].replace(".sql", ""));
 
-        Self {
-            id: id.as_bytes().try_into().unwrap(),
+        Ok(Self {
+            id: id.as_bytes().try_into()?,
             name: name.to_string(),
-        }
+        })
     }
 
     pub fn name(&self) -> &str {
@@ -41,12 +86,11 @@ impl Migration {
     }
 
     pub fn created_at(&self) -> chrono::NaiveDateTime {
-        let id = std::str::from_utf8(&self.id).unwrap();
-        chrono::NaiveDateTime::parse_from_str(id, "%Y%m%d%H%M%S").unwrap()
+        chrono::NaiveDateTime::parse_from_str(self.id.as_str(), "%Y%m%d%H%M%S").unwrap()
     }
 
     pub fn stringify_id(&self) -> String {
-        std::str::from_utf8(&self.id).unwrap().to_string()
+        self.id.to_string()
     }
 
     pub fn generate_filename(&self) -> String {
@@ -73,22 +117,22 @@ impl Migration {
         log::debug!("Generated file: {}", down_path);
     }
 
-    fn execute_file(&self, conn: &rusqlite::Connection, filepath: &str) -> rusqlite::Result<()> {
+    fn execute_file(&self, conn: &rusqlite::Connection, filepath: &str) -> AnyResult<()> {
         log::debug!("Executing file: {}", filepath);
-        let sql = std::fs::read_to_string(&filepath).unwrap();
+        let sql = std::fs::read_to_string(&filepath)?;
         conn.execute_batch(&sql)?;
 
         Ok(())
     }
 
-    pub fn up(&self, conn: &rusqlite::Connection) -> rusqlite::Result<()> {
+    pub fn up(&self, conn: &rusqlite::Connection) -> AnyResult<()> {
         self.execute_file(
             conn,
             &format!("{}/{}", &*crate::MIGRATOR_UP_DIR, self.generate_filename()),
         )
     }
 
-    pub fn down(&self, conn: &rusqlite::Connection) -> rusqlite::Result<()> {
+    pub fn down(&self, conn: &rusqlite::Connection) -> AnyResult<()> {
         self.execute_file(
             conn,
             &format!(
@@ -160,8 +204,7 @@ pub fn get_migration_history() -> AnyResult<Vec<Migration>> {
             .file_name()
             .into_string()
             .unwrap()
-            .replace("_up.sql", "")
-            .replace("_down.sql", "")
+            .replace(".sql", "")
     };
 
     let up_files: HashSet<String> = up_files.map(filename_mapper).collect();
@@ -195,7 +238,7 @@ pub fn get_migration_history() -> AnyResult<Vec<Migration>> {
     Ok(migrations)
 }
 
-pub fn get_current_migration(conn: &rusqlite::Connection) -> rusqlite::Result<Option<[u8; 14]>> {
+pub fn get_current_migration_id(conn: &rusqlite::Connection) -> AnyResult<Option<MigrationId>> {
     match conn.query_row(
         &format!(
             "SELECT id FROM {} ORDER BY migrated_at DESC LIMIT 1",
@@ -204,22 +247,21 @@ pub fn get_current_migration(conn: &rusqlite::Connection) -> rusqlite::Result<Op
         [],
         |row| {
             let id: String = row.get(0)?;
-            Ok(Some(id.as_bytes().try_into().unwrap()))
+            let id =
+                MigrationId::try_from(id.as_str()).map_err(|_| rusqlite::Error::InvalidQuery)?;
+            Ok(Some(id))
         },
     ) {
         Ok(id) => Ok(id),
         Err(rusqlite::Error::SqliteFailure(e, msg)) => {
             if let Some(ref m) = msg {
                 if m.contains("no such table") {
-                    Ok(None)
-                } else {
-                    Err(rusqlite::Error::SqliteFailure(e, msg))
+                    return Ok(None);
                 }
-            } else {
-                Err(rusqlite::Error::SqliteFailure(e, msg))
             }
+            Err(rusqlite::Error::SqliteFailure(e, msg))?
         }
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(err) => Err(err),
+        Err(err) => Err(err)?,
     }
 }

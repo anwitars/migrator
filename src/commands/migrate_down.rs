@@ -1,6 +1,6 @@
 use crate::{
-    AnyResult, Revision, cli::DatabaseUrl, create_migration_table, get_current_migration,
-    get_migration_history,
+    AnyResult, Revision, cli::DatabaseUrl, create_migration_table, get_migration_history,
+    migrations::get_current_migration_id,
 };
 
 pub fn migration_migrate_down(target: Revision, database_url: DatabaseUrl) -> AnyResult<()> {
@@ -13,11 +13,10 @@ pub fn migration_migrate_down(target: Revision, database_url: DatabaseUrl) -> An
     log::debug!("Migration table created if it didn't exist");
 
     let all_migrations = get_migration_history()?;
-    let current =
-        get_current_migration(&conn)?.map(|bytes| String::from_utf8_lossy(&bytes).to_string());
+    let current = get_current_migration_id(&conn)?;
     log::debug!("Current migration: {:?}", current);
 
-    let revisions_to_revert = target.revisions_to_revert(&all_migrations, current)?;
+    let revisions_to_revert = target.revisions_to_revert(&all_migrations, current.as_ref())?;
     log::debug!("Revisions to revert: {:?}", revisions_to_revert);
 
     if revisions_to_revert.is_empty() {

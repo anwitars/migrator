@@ -1,4 +1,5 @@
 use clap::Parser;
+use migrator::AnyResult;
 use migrator::cli::{Cli, Commands, MigrateCommands};
 use migrator::commands::{migration_history_command, migration_migrate_down, migration_migrate_up};
 use migrator::traits::ExitIfError;
@@ -10,7 +11,7 @@ fn main() {
 
     match cli.command {
         Commands::Migrate(migrate) => match migrate.command {
-            MigrateCommands::Create { name } => migration_create_command(name),
+            MigrateCommands::Create { name } => migration_create_command(name).exit_if_error(),
             MigrateCommands::Up {
                 revision,
                 database_url,
@@ -26,11 +27,13 @@ fn main() {
     }
 }
 
-fn migration_create_command(name: String) {
-    migrator::create_migrations_dir();
+fn migration_create_command(name: String) -> AnyResult<()> {
+    migrator::create_migrations_dir()?;
 
-    let migration = migrator::Migration::new(name);
+    let migration = migrator::Migration::new(name)?;
     log::debug!("Initialized migration: {:?}", migration);
 
     migration.generate_files();
+
+    Ok(())
 }
