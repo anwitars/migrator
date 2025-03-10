@@ -40,7 +40,7 @@ pub fn migration_migrate_up(revision: Revision, transaction: &Transaction<'_>) -
     transaction.execute(
         &format!(
             "INSERT INTO {} (id) VALUES (?)",
-            &*crate::MIGRATIONS_TABLE_NAME
+            crate::MIGRATIONS_TABLE_NAME
         ),
         [last_id],
     )?;

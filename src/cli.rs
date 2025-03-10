@@ -2,10 +2,14 @@ use crate::Revision;
 use clap::{Parser, Subcommand};
 use std::str::FromStr;
 
+const ABOUT: &str = "A simple database migration tool";
+const MIGRATE_DESC: &str = "Commands related to create, apply and revert migrations";
+const HISTORY_DESC: &str = "Show the history of the migrations in the <MIGRATIONS_DIR> directory";
+
 #[derive(Parser)]
 #[clap(name = "migrator")]
 #[clap(version)]
-#[clap(about = crate::constants::ABOUT)]
+#[clap(about = ABOUT)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,
@@ -14,9 +18,11 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     #[clap(name = "migrate")]
+    #[clap(about = MIGRATE_DESC)]
     Migrate(Migrate),
 
     #[clap(name = "history")]
+    #[clap(about = HISTORY_DESC)]
     History {
         /// If provided, the migration state of the database will be marked as current
         #[clap(short, long)]

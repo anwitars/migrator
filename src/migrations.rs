@@ -109,8 +109,8 @@ impl Migration {
     pub fn generate_files(&self) {
         let filename = self.generate_filename();
 
-        let up_path = format!("{}/{}", &*crate::MIGRATOR_UP_DIR, &filename);
-        let down_path = format!("{}/{}", &*crate::MIGRATOR_DOWN_DIR, &filename);
+        let up_path = format!("{}/{}", crate::MIGRATOR_UP_DIR, &filename);
+        let down_path = format!("{}/{}", crate::MIGRATOR_DOWN_DIR, &filename);
 
         std::fs::write(&up_path, "").unwrap();
         log::debug!("Generated file: {}", up_path);
@@ -130,18 +130,14 @@ impl Migration {
     pub fn up(&self, transaction: &Transaction<'_>) -> AnyResult<()> {
         self.execute_file(
             transaction,
-            &format!("{}/{}", &*crate::MIGRATOR_UP_DIR, self.generate_filename()),
+            &format!("{}/{}", crate::MIGRATOR_UP_DIR, self.generate_filename()),
         )
     }
 
     pub fn down(&self, conn: &rusqlite::Connection) -> AnyResult<()> {
         self.execute_file(
             conn,
-            &format!(
-                "{}/{}",
-                &*crate::MIGRATOR_DOWN_DIR,
-                self.generate_filename()
-            ),
+            &format!("{}/{}", crate::MIGRATOR_DOWN_DIR, self.generate_filename()),
         )
     }
 }
@@ -197,8 +193,8 @@ impl std::fmt::Display for InconsistentMigrationsError {
 }
 
 pub fn get_migration_history() -> AnyResult<Vec<Migration>> {
-    let up_files = std::fs::read_dir(&*crate::MIGRATOR_UP_DIR)?;
-    let down_files = std::fs::read_dir(&*crate::MIGRATOR_DOWN_DIR)?;
+    let up_files = std::fs::read_dir(crate::MIGRATOR_UP_DIR)?;
+    let down_files = std::fs::read_dir(crate::MIGRATOR_DOWN_DIR)?;
 
     let filename_mapper = |entry: std::io::Result<DirEntry>| -> String {
         entry
@@ -244,7 +240,7 @@ pub fn get_current_migration_id(transaction: &Transaction<'_>) -> AnyResult<Opti
     match transaction.query_row(
         &format!(
             "SELECT id FROM {} ORDER BY migrated_at DESC LIMIT 1",
-            &*crate::MIGRATIONS_TABLE_NAME
+            crate::MIGRATIONS_TABLE_NAME
         ),
         [],
         |row| {

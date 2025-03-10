@@ -3,8 +3,8 @@ use rusqlite::{Connection, Transaction};
 use crate::{AnyResult, cli::DatabaseUrl};
 
 pub fn create_migration_table(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
-    transaction.execute(&*crate::CREATE_MIGRATIONS_TABLE_SQL, [])?;
-    transaction.execute(&*crate::CREATE_MIGRATIONS_TABLE_UPDATE_TRIGGER_SQL, [])?;
+    transaction.execute(crate::CREATE_MIGRATIONS_TABLE_SQL, [])?;
+    transaction.execute(crate::CREATE_MIGRATIONS_TABLE_UPDATE_TRIGGER_SQL, [])?;
 
     Ok(())
 }
@@ -26,8 +26,8 @@ pub fn table_exists<S: AsRef<str>>(conn: &Connection, table_name: S) -> rusqlite
 }
 
 pub fn create_migrations_dir() -> std::io::Result<()> {
-    std::fs::create_dir_all(&*crate::MIGRATOR_UP_DIR)?;
-    std::fs::create_dir_all(&*crate::MIGRATOR_DOWN_DIR)?;
+    std::fs::create_dir_all(crate::MIGRATOR_UP_DIR)?;
+    std::fs::create_dir_all(crate::MIGRATOR_DOWN_DIR)?;
     log::debug!("Created migrations directory");
     Ok(())
 }
