@@ -29,7 +29,7 @@ pub fn migration_migrate_down(target: Revision, transaction: &Transaction<'_>) -
             .find(|m| &m.stringify_id() == migration_id)
             .unwrap();
 
-        log::debug!("Reverting migration: {:?}", migration);
+        println!("Reverting migration: {}", migration.stringify_id());
         migration.down(&transaction)?;
     }
     log::debug!("All migrations applied");

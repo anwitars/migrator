@@ -29,7 +29,7 @@ pub fn migration_migrate_up(revision: Revision, transaction: &Transaction<'_>) -
             .find(|m| &m.stringify_id() == migration_id)
             .unwrap();
 
-        log::debug!("Applying migration: {:?}", migration);
+        println!("Applying migration: {}", migration.stringify_id());
         migration.up(&transaction)?;
     }
     log::debug!("All migrations applied");
