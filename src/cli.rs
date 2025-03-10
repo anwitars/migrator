@@ -3,6 +3,9 @@ use clap::{Parser, Subcommand};
 use std::str::FromStr;
 
 #[derive(Parser)]
+#[clap(name = "migrator")]
+#[clap(version)]
+#[clap(about = crate::constants::ABOUT)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,

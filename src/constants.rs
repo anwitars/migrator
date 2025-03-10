@@ -1,5 +1,7 @@
 use std::sync::LazyLock;
 
+pub(crate) const ABOUT: &str = "A simple database migration tool";
+
 pub const MIGRATIONS_TABLE_NAME: &str = "__migrations__";
 
 pub static CREATE_MIGRATIONS_TABLE_SQL: LazyLock<String> = LazyLock::new(|| {
