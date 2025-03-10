@@ -1,5 +1,7 @@
 use std::{array::TryFromSliceError, collections::HashSet, fs::DirEntry};
 
+use rusqlite::Transaction;
+
 use crate::AnyResult;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -125,9 +127,9 @@ impl Migration {
         Ok(())
     }
 
-    pub fn up(&self, conn: &rusqlite::Connection) -> AnyResult<()> {
+    pub fn up(&self, transaction: &Transaction<'_>) -> AnyResult<()> {
         self.execute_file(
-            conn,
+            transaction,
             &format!("{}/{}", &*crate::MIGRATOR_UP_DIR, self.generate_filename()),
         )
     }
@@ -238,8 +240,8 @@ pub fn get_migration_history() -> AnyResult<Vec<Migration>> {
     Ok(migrations)
 }
 
-pub fn get_current_migration_id(conn: &rusqlite::Connection) -> AnyResult<Option<MigrationId>> {
-    match conn.query_row(
+pub fn get_current_migration_id(transaction: &Transaction<'_>) -> AnyResult<Option<MigrationId>> {
+    match transaction.query_row(
         &format!(
             "SELECT id FROM {} ORDER BY migrated_at DESC LIMIT 1",
             &*crate::MIGRATIONS_TABLE_NAME

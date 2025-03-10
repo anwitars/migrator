@@ -1,19 +1,18 @@
+use rusqlite::Transaction;
+
 use crate::{
-    AnyResult, Revision, cli::DatabaseUrl, create_migration_table, get_migration_history,
+    AnyResult, Revision, create_migration_table, get_migration_history,
     migrations::get_current_migration_id,
 };
 
-pub fn migration_migrate_up(revision: Revision, database_url: DatabaseUrl) -> AnyResult<()> {
+pub fn migration_migrate_up(revision: Revision, transaction: &Transaction<'_>) -> AnyResult<()> {
     log::debug!("Target revision: {:?}", revision);
 
-    let conn = database_url.open_connection()?;
-    log::debug!("Opened connection to database");
-
-    create_migration_table(&conn)?;
+    create_migration_table(&transaction)?;
     log::debug!("Migration table created if it didn't exist");
 
     let all_migrations = get_migration_history()?;
-    let current = get_current_migration_id(&conn)?;
+    let current = get_current_migration_id(&transaction)?;
     log::debug!("Current migration: {:?}", current);
 
     let revisions_to_apply = revision.revisions_to_apply(&all_migrations, current.as_ref())?;
@@ -31,14 +30,14 @@ pub fn migration_migrate_up(revision: Revision, database_url: DatabaseUrl) -> An
             .unwrap();
 
         log::debug!("Applying migration: {:?}", migration);
-        migration.up(&conn)?;
+        migration.up(&transaction)?;
     }
     log::debug!("All migrations applied");
 
     let last_id = revisions_to_apply.last().unwrap();
     log::debug!("Setting last migration id to: {}", last_id);
 
-    conn.execute(
+    transaction.execute(
         &format!(
             "INSERT INTO {} (id) VALUES (?)",
             &*crate::MIGRATIONS_TABLE_NAME

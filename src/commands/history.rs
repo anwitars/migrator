@@ -2,8 +2,9 @@ use crate::{AnyResult, cli::DatabaseUrl};
 
 pub fn migration_history_command(database_url: Option<DatabaseUrl>) -> AnyResult<()> {
     let current = if let Some(db_url) = database_url {
-        let conn = db_url.open_connection()?;
-        crate::get_current_migration_id(&conn)?
+        let mut conn = db_url.open_connection()?;
+        let transaction = conn.transaction()?;
+        crate::get_current_migration_id(&transaction)?
     } else {
         None
     };

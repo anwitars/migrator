@@ -1,8 +1,8 @@
 use clap::Parser;
-use migrator::AnyResult;
 use migrator::cli::{Cli, Commands, MigrateCommands};
 use migrator::commands::{migration_history_command, migration_migrate_down, migration_migrate_up};
 use migrator::traits::ExitIfError;
+use migrator::{AnyResult, run_with_transaction};
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
@@ -15,11 +15,17 @@ fn main() {
             MigrateCommands::Up {
                 revision,
                 database_url,
-            } => migration_migrate_up(revision, database_url).exit_if_error(),
+            } => run_with_transaction(database_url, |transaction| {
+                migration_migrate_up(revision, transaction)
+            })
+            .exit_if_error(),
             MigrateCommands::Down {
                 revision,
                 database_url,
-            } => migration_migrate_down(revision, database_url).exit_if_error(),
+            } => run_with_transaction(database_url, |transaction| {
+                migration_migrate_down(revision, transaction)
+            })
+            .exit_if_error(),
         },
         Commands::History { database_url } => {
             migration_history_command(database_url).exit_if_error();

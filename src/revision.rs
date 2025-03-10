@@ -104,7 +104,7 @@ impl Revision {
         }
 
         Ok(
-            all_migrations[current_index.unwrap_or(0) + 1..=target_index]
+            all_migrations[current_index.map(|c| c + 1).unwrap_or(0)..=target_index]
                 .iter()
                 .map(|m| m.stringify_id().clone())
                 .collect(),
