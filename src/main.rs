@@ -5,7 +5,7 @@ use migrator::traits::ExitIfError;
 use migrator::{AnyResult, run_with_transaction};
 
 fn main() {
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("warning"));
 
     let cli = Cli::parse();
 
